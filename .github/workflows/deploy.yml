@@ -30,7 +30,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: devmarinhos/budget-agent:${{ env.IMAGE_TAG }},devmarinhos/budget-agent:latest
+          tags: devmarinho/budget-agent:${{ env.IMAGE_TAG }},devmarinho/budget-agent:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
