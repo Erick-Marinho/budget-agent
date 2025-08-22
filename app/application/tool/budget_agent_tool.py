@@ -3,6 +3,7 @@ from langchain_core.tools import tool
 import logging
 from typing import Dict, Any, List, Optional
 import json
+from app.application.model.state_budget import StateBudget
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +14,7 @@ AUTHORIZATION_TOKEN = "02a283a5-6170-492f-9d00-461baa5f01eb"
 DEFAULT_FRANCHISE_ID = 1
 
 @tool
-def get_budget_info(query: str) -> str:
+def get_budget_info(query: str, state: StateBudget ) -> str:
     """
     Busca informações sobre serviços e preços da franquia Dr. Sofá.
     
@@ -29,18 +30,23 @@ def get_budget_info(query: str) -> str:
     try:
         # Buscar dados da API
         services_data = _fetch_franchise_services()
-        
+
+        if state.requested_service_id == 1:
+            services_data = _filter_services_by_service_id(services_data, state.requested_service_id)
+                
         if not services_data:
             return "Erro ao buscar informações dos serviços. Tente novamente."
         
         # Filtrar serviços baseado na consulta
-        filtered_services = _filter_services_by_query(services_data, query)
+        filtered_services = _filter_services_by_query(services_data, state.key_words)
         
         if not filtered_services:
             return f"Nenhum serviço encontrado para '{query}'. Tente termos como: sofá, colchão, poltrona, limpeza, impermeabilização."
         
         # Formatar resposta
-        return _format_services_response(filtered_services, query)
+        formated_response = _format_services_response(filtered_services, query)
+
+        return formated_response
         
     except Exception as e:
         logger.error(f"Erro ao buscar informações de orçamento: {str(e)}")
@@ -76,27 +82,23 @@ def _fetch_franchise_services() -> Optional[List[Dict[str, Any]]]:
         logger.error(f"Erro ao decodificar resposta JSON: {str(e)}")
         return None
 
+def _filter_services_by_service_id(services: List[Dict[str, Any]], service_id: int) -> List[Dict[str, Any]]:
+    """Filtra serviços baseado no id do serviço"""
+    return [service for service in services if service.get("servicoscategoria_id") == service_id]
 
-def _filter_services_by_query(services: List[Dict[str, Any]], query: str) -> List[Dict[str, Any]]:
+def _filter_services_by_query(services: List[Dict[str, Any]], key_words: list[str]) -> List[Dict[str, Any]]:
     """Filtra serviços baseado na consulta do usuário"""
-    
-    query_lower = query.lower()
+
+    # query_lower = key_words.lower()
     filtered = []
+    key_words_lower = [word.lower() for word in key_words]
     
     for service in services:
         service_name = service.get("servico_nome", "").lower()
         
         # Busca por palavras-chave na consulta
-        if any(word in service_name for word in query_lower.split()):
-            filtered.append(service)
-    
-    # Se não encontrou nada, tenta busca mais ampla
-    if not filtered:
-        for service in services:
-            service_name = service.get("servico_nome", "").lower()
-            if query_lower in service_name:
-                filtered.append(service)
-    
+        if any(word in service_name for word in key_words_lower):
+            filtered.append(service)    
     return filtered
 
 
